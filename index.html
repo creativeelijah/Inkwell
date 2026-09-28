@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inkwell: every story finds its home</title>
+<link rel="icon" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#F6F0E4;--card:#FBF7EE;--ink:#221E1A;--mute:#7A6F63;--line:#DDD2BF;--accent:#7B2D3B;--serif:'Newsreader',Georgia,serif;--sans:'DM Sans',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.7 var(--serif)}
+a{color:inherit}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper);z-index:5}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-size:27px;font-weight:600}
+.brand img{height:36px;width:auto}
+nav{display:flex;gap:16px;font:500 15px var(--sans);align-items:center;flex-wrap:wrap;justify-content:flex-end}
+nav a{text-decoration:none}nav a:hover{color:var(--accent)}
+main{max-width:720px;margin:0 auto;padding:28px 20px 80px}
+h1,h2{font-weight:600;line-height:1.15;letter-spacing:-.015em}
+.hero{padding:36px 0 28px}
+.hero h1{font-size:clamp(38px,9vw,60px);margin:0 0 12px}
+.hero p{color:var(--mute);margin:0 0 22px;max-width:34em}
+.btn{display:inline-block;font:600 15px var(--sans);background:var(--accent);color:#fff;border:1.5px solid var(--accent);padding:11px 20px;border-radius:6px;cursor:pointer;text-decoration:none}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.5}
+input,select,textarea{width:100%;font:16px var(--sans);padding:11px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);margin-top:6px}
+textarea{font:18px/1.7 var(--serif)}
+label{display:block;font:500 14px var(--sans);margin:0 0 16px;color:var(--mute)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tools{margin:8px 0 22px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{font:500 14px var(--sans);padding:6px 13px;border:1px solid var(--line);border-radius:99px;background:transparent;cursor:pointer;color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.card{display:flex;gap:16px;padding:22px 0;border-top:1px solid var(--line);text-decoration:none}
+.card img{width:110px;height:110px;object-fit:cover;border-radius:4px;flex:none}
+.card h3{font-size:24px;line-height:1.25;margin:2px 0 6px}
+.card p{margin:0;color:var(--mute);font-style:italic;font-size:17px;line-height:1.55}
+.meta{display:flex;gap:14px;font:14px var(--sans);color:var(--mute);flex-wrap:wrap}
+.cat{color:var(--accent);font-weight:600}
+.story h1{font-size:clamp(34px,7vw,48px);margin:8px 0 12px}
+.story .cover{width:100%;max-height:360px;object-fit:cover;border-radius:6px;margin:18px 0}
+.story .text p{margin:0 0 1.2em;font-size:20px;line-height:1.8}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.item a{font-size:20px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font:500 15px var(--sans);padding:12px 18px;border-radius:6px;z-index:9;max-width:90%}
+@media(max-width:480px){.card img{width:84px;height:84px}}
+@media(prefers-reduced-motion:no-preference){main{animation:in .35s ease-out}@keyframes in{from{opacity:0}to{opacity:1}}}
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="#/"><img src="logo.png" alt="Inkwell" onload="this.nextElementSibling.hidden=true" onerror="this.hidden=true"><span>Inkwell</span></a>
+  <nav id="nav"></nav>
+</header>
+<main id="app"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const sb=supabase.createClient('https://lyrfbeaahwfebwmmnfdx.supabase.co','sb_publishable_u6xcM5Bn8X82-5xNERMtPA_x3NjLbrp');
+const CATS=['Fiction','Poetry','Personal Essay','Non-fiction','Horror','Romance','Sci-Fi/Fantasy','Other'];
+const app=document.getElementById('app'),nav=document.getElementById('nav');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=d=>new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+let user=null;
+
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.append(t);setTimeout(()=>t.remove(),4000)}
+
+function renderNav(){
+  nav.innerHTML='<a href="#/">Read</a><a href="#/write">Write</a>'+(user?'<a href="#/mine">My stories</a><a href="#" id="out">Sign out</a>':'<a href="#/login">Sign in</a>');
+  const o=document.getElementById('out');
+  if(o)o.onclick=async e=>{e.preventDefault();await sb.auth.signOut();location.hash='#/'};
+}
+
+const card=s=>`<a class="card" href="#/story/${s.id}">${s.cover_url?`<img src="${esc(s.cover_url)}" alt="">`:''}<div><div class="meta"><span class="cat">${esc(s.category)}</span><span>${s.reading_minutes} min read</span></div><h3>${esc(s.title)}</h3><p>${esc(s.body.slice(0,140))}…</p><div class="meta" style="margin-top:8px"><span>${esc(s.profiles?.display_name||'Anonymous')}</span></div></div></a>`;
+
+async function feed(){
+  app.innerHTML=`<section class="hero"><h1>Every story finds its home</h1><p>Fiction, poetry, essays and everything between. Read something new, or share your own.</p><a class="btn" href="#/write">Write a story</a></section>
+  <div class="tools"><input id="q" placeholder="Search titles and tags"><div class="chips" id="cats"></div></div><div id="list">Loading…</div>`;
+  const {data,error}=await sb.from('stories').select('id,title,body,cover_url,category,tags,reading_minutes,created_at,profiles(display_name)').eq('status','published').order('created_at',{ascending:false}).limit(60);
+  const list=document.getElementById('list');
+  if(error){list.textContent='Could not load stories: '+error.message;return}
+  let cat='All',q='';
+  const draw=()=>{
+    document.getElementById('cats').innerHTML=['All',...CATS].map(c=>`<button class="chip${c===cat?' on':''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+    document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{cat=b.dataset.c;draw()});
+    const r=data.filter(s=>(cat==='All'||s.category===cat)&&(!q||(s.title+' '+(s.tags||[]).join(' ')).toLowerCase().includes(q)));
+    list.innerHTML=r.length?r.map(card).join(''):'<p>No stories here yet. Be the first to <a href="#/write">write one</a>.</p>';
+  };
+  document.getElementById('q').oninput=e=>{q=e.target.value.toLowerCase().trim();draw()};
+  draw();
+}
+
+async function story(id){
+  app.innerHTML='Loading…';
+  const {data:s,error}=await sb.from('stories').select('*,profiles(display_name)').eq('id',id).single();
+  if(error||!s){app.innerHTML='<p>We could not find that story. <a href="#/">Back to reading</a></p>';return}
+  if(!sessionStorage['v'+id]){sessionStorage['v'+id]=1;sb.rpc('increment_views',{sid:id})}
+  app.innerHTML=`<article class="story"><div class="meta"><span class="cat">${esc(s.category)}</span><span>${s.reading_minutes} min read</span><span>${s.views} views</span></div><h1>${esc(s.title)}</h1><div class="meta"><span>By ${esc(s.profiles?.display_name||'Anonymous')}</span><span>${fmt(s.created_at)}</span></div>${s.cover_url?`<img class="cover" src="${esc(s.cover_url)}" alt="">`:''}<div class="text">${s.body.split(/\n{2,}/).map(p=>`<p>${esc(p).replace(/\n/g,'<br>')}</p>`).join('')}</div>${(s.tags||[]).length?`<div class="meta">${s.tags.map(t=>`<span>#${esc(t)}</span>`).join('')}</div>`:''}</article>`;
+}
+
+function write(){
+  if(!user){location.hash='#/login';return}
+  app.innerHTML=`<h2>Write a story</h2><form id="f"><label>Title<input name="title" required maxlength="120"></label><label>Category<select name="category">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></label><label>Tags (up to 5, separated by commas)<input name="tags"></label><label>Cover image (optional, under 3 MB)<input type="file" name="cover" accept="image/*"></label><label>Your story<textarea name="body" rows="16" required></textarea></label><div class="row"><button class="btn ghost" data-s="draft">Save draft</button><button class="btn" data-s="published">Publish</button></div></form>`;
+  const f=document.getElementById('f');
+  f.onsubmit=async e=>{
+    e.preventDefault();
+    const status=e.submitter.dataset.s,fd=new FormData(f),file=fd.get('cover');
+    let cover_url=null;
+    if(file&&file.size){
+      if(file.size>3e6)return toast('Cover image must be under 3 MB');
+      const p=`${user.id}/${Date.now()}-${file.name.replace(/[^\w.]/g,'_')}`;
+      const u=await sb.storage.from('covers').upload(p,file);
+      if(u.error)return toast(u.error.message);
+      cover_url=sb.storage.from('covers').getPublicUrl(p).data.publicUrl;
+    }
+    const body=fd.get('body').trim();
+    const {data,error}=await sb.from('stories').insert({author_id:user.id,title:fd.get('title').trim(),body,cover_url,category:fd.get('category'),tags:fd.get('tags').split(',').map(t=>t.trim()).filter(Boolean).slice(0,5),reading_minutes:Math.max(1,Math.ceil(body.split(/\s+/).length/200)),status}).select('id').single();
+    if(error)return toast(error.message);
+    toast(status==='published'?'Published':'Draft saved');
+    location.hash=status==='published'?'#/story/'+data.id:'#/mine';
+  };
+}
+
+async function mine(){
+  if(!user){location.hash='#/login';return}
+  app.innerHTML='Loading…';
+  const {data,error}=await sb.from('stories').select('id,title,status,views,created_at').eq('author_id',user.id).order('created_at',{ascending:false});
+  if(error){app.textContent=error.message;return}
+  app.innerHTML=`<h2>My stories</h2><p class="meta">${data.reduce((n,s)=>n+s.views,0)} total views</p>`+(data.length?data.map(s=>`<div class="item"><div><a href="#/story/${s.id}">${esc(s.title)}</a><div class="meta"><span>${s.status==='draft'?'Draft':'Published'}</span><span>${s.views} views</span><span>${fmt(s.created_at)}</span></div></div><button class="btn ghost" data-d="${s.id}">Delete</button></div>`).join(''):'<p>You have not written anything yet. <a href="#/write">Start your first story</a>.</p>');
+  app.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Delete this story for good?'))return;
+    const {error}=await sb.from('stories').delete().eq('id',b.dataset.d);
+    if(error)return toast(error.message);
+    toast('Deleted');mine();
+  });
+}
+
+function login(){
+  let up=false;
+  const draw=()=>{
+    app.innerHTML=`<h2>${up?'Create your account':'Sign in'}</h2><form id="f">${up?'<label>Display name<input name="name" required maxlength="40"></label>':''}<label>Email<input type="email" name="email" required></label><label>Password<input type="password" name="pw" minlength="6" required></label><button class="btn">${up?'Create account':'Sign in'}</button></form><p><a href="#" id="t">${up?'Already have an account? Sign in':'New here? Create an account'}</a></p>`;
+    document.getElementById('t').onclick=e=>{e.preventDefault();up=!up;draw()};
+    document.getElementById('f').onsubmit=async e=>{
+      e.preventDefault();
+      const fd=new FormData(e.target),email=fd.get('email'),password=fd.get('pw');
+      if(up){
+        const {data,error}=await sb.auth.signUp({email,password,options:{data:{display_name:fd.get('name')}}});
+        if(error)return toast(error.message);
+        if(!data.session)return toast('Check your email to confirm your account, then sign in.');
+      }else{
+        const {error}=await sb.auth.signInWithPassword({email,password});
+        if(error)return toast(error.message);
+      }
+      location.hash='#/';
+    };
+  };
+  draw();
+}
+
+function route(){
+  const [a,b]=location.hash.slice(2).split('/');
+  window.scrollTo(0,0);
+  ({'':feed,story:()=>story(b),write,login,mine}[a]||feed)();
+}
+
+sb.auth.getSession().then(({data})=>{user=data.session?.user||null;renderNav();route()});
+sb.auth.onAuthStateChange((_e,s)=>{user=s?.user||null;renderNav()});
+addEventListener('hashchange',route);
+</script>
+</body>
+</html>
